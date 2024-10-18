@@ -82,6 +82,11 @@ public class Configuration
                               + "deployments of a second execution are logged.", arity = 1 )
     private Boolean verifyOnly = false;
 
+    @Parameter( names = {"-df", "-deployFilterFile"},
+                description = "File containing a list of GAVs to deploy, one per line, in the format "
+                              + "groupId:artifactId:version:extension", arity = 1 )
+    private String deployFilterFile;
+
     @Parameter( names = {"-dt", "-deployThreads"},
                 description = "Number of threads to use for deploying artifacts. Defaults to 5." )
     private int deployThreads = 5;
@@ -273,6 +278,16 @@ public class Configuration
     public boolean hasArtifactsCoordinates()
     {
         return artifactCoordinate != null && !artifactCoordinate.isEmpty();
+    }
+
+    public String getDeployFilterFile()
+    {
+        return deployFilterFile;
+    }
+
+    public void setDeployFilterFile( String deployFilterFile )
+    {
+        this.deployFilterFile = deployFilterFile;
     }
 
     public String getConfigSummary()

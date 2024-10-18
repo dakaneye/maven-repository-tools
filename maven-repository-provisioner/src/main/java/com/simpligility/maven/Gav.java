@@ -1,8 +1,10 @@
-/** 
+/**
  * Copyright simpligility technologies inc. http://www.simpligility.com
  * Licensed under Eclipse Public License - v 1.0 http://www.eclipse.org/legal/epl-v10.html
  */
 package com.simpligility.maven;
+
+import java.util.Objects;
 
 public final class Gav
 {
@@ -11,7 +13,7 @@ public final class Gav
     private final String artifactId;
 
     private final String version;
-    
+
     private final String packaging;
 
     public Gav( String groupId, String artifactId, String version, String packaging )
@@ -66,10 +68,34 @@ public final class Gav
     {
         return getFilenameStart() + MavenConstants.JAVADOC_JAR;
     }
-    
+
     public String getRepositoryURLPath()
     {
         return groupId.replace( ".", "/" ) + "/" + artifactId + "/" + version + "/";
+    }
+
+    @Override
+    public boolean equals( Object obj )
+    {
+        if ( this == obj )
+        {
+            return true;
+        }
+        if ( obj == null || getClass() != obj.getClass() )
+        {
+            return false;
+        }
+        Gav gav = ( Gav ) obj;
+        return groupId.equals( gav.getGroupId() )
+               && artifactId.equals( gav.getArtifactId() )
+               && version.equals( gav.getVersion() )
+               && packaging.equals( gav.getPackaging() );
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash( groupId, artifactId, version, packaging );
     }
 
     @Override

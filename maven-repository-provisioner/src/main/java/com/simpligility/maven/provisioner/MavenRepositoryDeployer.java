@@ -71,6 +71,7 @@ public class MavenRepositoryDeployer
     private final Boolean checkTarget;
     private final Boolean verifyOnly;
     private final int threads;
+    private final String deployFilterFile;
 
     public static class DeploymentResult
     {
@@ -120,6 +121,7 @@ public class MavenRepositoryDeployer
         this.checkTarget = configuration.getCheckTarget();
         this.verifyOnly = configuration.getVerifyOnly();
         this.threads = configuration.getDeployThreads();
+        this.deployFilterFile = configuration.getDeployFilterFile();
         initialize();
     }
 
@@ -198,6 +200,18 @@ public class MavenRepositoryDeployer
                 String leafRepoPath = leafAbsolutePath.substring( repoAbsolutePathLength + 1 );
 
                 Gav gav = GavUtil.getGavFromRepositoryPath( leafRepoPath );
+
+                // If this list is empty, do no filtering to preserve existing workflow
+                List<Gav> gavs = loadGavsFromFilterFile();
+                if ( !gavs.isEmpty() )
+                {
+                    if ( !gavs.contains( gav ) )
+                    {
+                        logger.info( "Skipping deployment of {} as it is not in the filter list.", gav );
+                        addSkippedDeploy( gav.toString() );
+                        continue;
+                    }
+                }
 
                 boolean pomInTarget = false;
                 if ( checkTarget )
@@ -416,5 +430,35 @@ public class MavenRepositoryDeployer
         logger.info( "Failed Deployments {}: {}", failedDeploys.size(), String.join( ",", failedDeploys ) );
         logger.info( "Skipped Deployments {}: {}", skippedDeploys.size(), String.join( ",", skippedDeploys ) );
         logger.info( "Potential Deployments {}: {}", potentialDeploys.size(), String.join( ",", potentialDeploys ) );
+    }
+
+    public List<Gav> loadGavsFromFilterFile()
+    {
+        List<Gav> gavs = new ArrayList<>();
+        if ( deployFilterFile != null )
+        {
+            try
+            {
+                File file = new File( deployFilterFile );
+                if ( file.exists() )
+                {
+                    BufferedReader reader = new BufferedReader( new FileReader( file ) );
+                    String line;
+                    while ( ( line = reader.readLine() ) != null )
+                    {
+                        String[] parts = line.split( ":" );
+                        if ( parts.length == 4 )
+                        {
+                            gavs.add( new Gav( parts[0], parts[1], parts[2], parts[3] ) );
+                        }
+                    }
+                }
+            }
+            catch ( IOException e )
+            {
+                logger.error( "Failed to load GAVs from filter file", e );
+            }
+        }
+        return gavs;
     }
 }
