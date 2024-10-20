@@ -109,6 +109,11 @@ public class Configuration {
             arity = 1)
     private Boolean verifyOnly = false;
 
+    @Parameter(
+            names = {"-dt", "-deployThreads"},
+            description = "Number of threads to use for deploying artifacts. Defaults to 5.")
+    private int deployThreads = 5;
+
     public void setSourceUrl(String sourceUrl) {
         this.sourceUrl = sourceUrl;
     }
@@ -242,8 +247,15 @@ public class Configuration {
     }
 
     public List<String> getArtifactCoordinates() {
-        List<String> coords = Arrays.asList(artifactCoordinate.split("\\|"));
-        return coords;
+        return Arrays.asList(artifactCoordinate.split("\\|"));
+    }
+
+    public void setDeployThreads(int deployThreads) {
+        this.deployThreads = deployThreads;
+    }
+
+    public int getDeployThreads() {
+        return deployThreads;
     }
 
     public boolean hasArtifactsCoordinates() {
