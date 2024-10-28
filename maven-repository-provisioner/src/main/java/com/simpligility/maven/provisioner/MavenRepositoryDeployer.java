@@ -11,9 +11,16 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 
 import com.simpligility.maven.Gav;
+import com.simpligility.maven.GavPattern;
 import com.simpligility.maven.GavUtil;
 import com.simpligility.maven.MavenConstants;
 import org.apache.commons.io.FileUtils;
@@ -59,9 +66,20 @@ public class MavenRepositoryDeployer {
 
     private final TreeSet<String> potentialDeploys = new TreeSet<String>();
 
-    public MavenRepositoryDeployer(File repositoryPath, Boolean parallelDeploy, int deployThreads) {
+    private final Set<GavPattern> gavPatterns;
+
+    public MavenRepositoryDeployer(File repositoryPath, String deployFilterFile, Boolean parallelDeploy,
+                                   int deployThreads) {
         this.repositoryPath = repositoryPath;
         initialize(parallelDeploy, deployThreads);
+        gavPatterns = loadGavPatternsFromFilterFile(deployFilterFile);
+    }
+
+    /**
+     * Default constructor to make unit testing easier
+     */
+    public MavenRepositoryDeployer() {
+        gavPatterns = new HashSet<>();
     }
 
     private void initialize(Boolean parallelDeploy, int deployThreads) {
@@ -126,6 +144,11 @@ public class MavenRepositoryDeployer {
             String leafRepoPath = leafAbsolutePath.substring(repoAbsolutePathLength + 1, leafAbsolutePath.length());
 
             Gav gav = GavUtil.getGavFromRepositoryPath(leafRepoPath);
+
+            if (!canDeployGav(gav, 10)) {
+                logger.info("Skipping deployment of " + gav + " as it is not in the deploy filter file.");
+                continue;
+            }
 
             boolean pomInTarget = false;
             if (checkTarget) {
@@ -325,5 +348,54 @@ public class MavenRepositoryDeployer {
 
     public String getFailureMessage() {
         return "Failed to deploy some artifacts.";
+    }
+
+    public Set<GavPattern> loadGavPatternsFromFilterFile(String deployFilterFile) {
+        Set<GavPattern> gavPatterns = new HashSet<>();
+        if (deployFilterFile != null) {
+            try {
+                File file = new File(deployFilterFile);
+                if (file.exists()) {
+                    BufferedReader reader = new BufferedReader(new FileReader(file));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String[] parts = line.split(":");
+                        if (parts.length == 4) {
+                            String groupIdPattern = parts[0].replace("*", ".*");
+                            String artifactIdPattern = parts[1].replace("*", ".*");
+                            String versionPattern = parts[2].replace("*", ".*");
+                            String packagingPattern = parts[3].replace("*", ".*");
+
+                            Pattern pattern = Pattern.compile(groupIdPattern + ":" + artifactIdPattern + ":"
+                                    + versionPattern + ":" + packagingPattern);
+
+                            gavPatterns.add(new GavPattern(pattern));
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                logger.error("Failed to load GAVs from filter file", e);
+            }
+        }
+        return gavPatterns;
+    }
+
+    public boolean canDeployGav(Gav gav, int threadPoolSize) {
+
+        if (gavPatterns == null || gavPatterns.isEmpty()) {
+            return true;
+        }
+
+        try (GavMatcherExecutor gavMatcherExecutor = new GavMatcherExecutor(threadPoolSize)) {
+            List<CompletableFuture<Boolean>> futures = gavMatcherExecutor.evaluateGav(gav, gavPatterns);
+            for (Future<Boolean> future : futures) {
+                if (future.get()) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error evaluating GAV {} against patterns", gav, e);
+        }
+        return false;
     }
 }

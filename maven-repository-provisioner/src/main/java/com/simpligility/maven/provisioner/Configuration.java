@@ -120,6 +120,12 @@ public class Configuration {
             description = "How many threads to use for parallel deployment. Ignored if parallelDeploy is false.")
     private int deployThreads = 5;
 
+    @Parameter(
+            names = {"-df", "deployFilterFile"},
+            description = "File containing a list of GAVs to deploy, one per line in format of groupId:artifactId:"
+                    + "version:extension",
+            arity = 1)
+    private String deployFilterFile;
 
     public void setSourceUrl(String sourceUrl) {
         this.sourceUrl = sourceUrl;
@@ -175,6 +181,10 @@ public class Configuration {
 
     public void setVerifyOnly(Boolean verifyOnly) {
         this.verifyOnly = verifyOnly;
+    }
+
+    public void setDeployFilterFile(String deployFilterFile) {
+        this.deployFilterFile = deployFilterFile;
     }
 
     public void setParallelDeploy(Boolean parallelDeploy) {
@@ -267,6 +277,10 @@ public class Configuration {
 
     public int getDeployThreads() {
         return deployThreads;
+    }
+
+    public String getDeployFilterFile() {
+        return deployFilterFile;
     }
 
     public List<String> getArtifactCoordinates() {
